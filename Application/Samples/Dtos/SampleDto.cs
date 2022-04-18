@@ -9,5 +9,6 @@ namespace Application.Samples.Dtos
 {
     public class SampleDto:AuditableDto
     {
+        public string? NameOfSample { get; set; }
     }
 }

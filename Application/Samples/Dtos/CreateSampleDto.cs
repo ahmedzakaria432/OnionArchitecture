@@ -8,5 +8,6 @@ namespace Application.Samples.Dtos
 {
     public class CreateSampleDto
     {
+        public string? NameOfSample { get; set; }
     }
 }

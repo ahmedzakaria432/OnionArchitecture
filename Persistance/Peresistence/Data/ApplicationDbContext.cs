@@ -1,6 +1,7 @@
 ﻿using Application.Shared.Interfaces;
 using Core.Samples;
 using Core.Shared;
+using Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +14,9 @@ using System.Threading.Tasks;
 
 namespace Infrastructure.Peresistence.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<IdentityUser>, IApplicationDbContext
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options):base(options)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
 
         }

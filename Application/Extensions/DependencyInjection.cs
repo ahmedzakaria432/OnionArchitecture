@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Application.Samples.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace Application.Extensions
         {
             
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
+
 
             return services;
         }

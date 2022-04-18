@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Infrastructure.Identity
 {
-    public class ApplicationUser:IdentityUser<Guid>
+    public class ApplicationUser:IdentityUser
     {
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
