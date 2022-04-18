@@ -1,40 +1,31 @@
 ﻿using Application.Identity;
 using Application.Identity.Dtos;
 using Core.Shared.Exceptions;
-using Infrastructure.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Identity
 {
     public class IdentityService : IIdentityService
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly Jwt _jwt;
+      
+        private readonly SignInManager<ApplicationUser> _signInManager;
 
         public IdentityService(
             UserManager<ApplicationUser> userManager,
-            RoleManager<IdentityRole> roleManager,
-             Jwt jwt)
+            SignInManager<ApplicationUser> signInManager)
         {
             this._userManager = userManager;
-            this._roleManager = roleManager;
-            this._jwt = jwt;
+            
+            this._signInManager = signInManager;
         }
 
 
 
-        public async Task<UserDto> GetUser(string userId)
+        public async Task<UserDto> GetUserAsync(string userId)
         {
-            ApplicationUser user = await GetUserAndCheckIfNull(userId);
+            ApplicationUser user = await GetUserByIdAndCheckIfNull(userId);
             return ToUserDto(user);
 
         }
@@ -52,7 +43,7 @@ namespace Infrastructure.Identity
                  };
               }
 
-              private async Task<ApplicationUser> GetUserAndCheckIfNull(string userId)
+              private async Task<ApplicationUser> GetUserByIdAndCheckIfNull(string userId)
               {
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null) throw new NotFoundException();
@@ -61,13 +52,13 @@ namespace Infrastructure.Identity
 
         public async Task<string> GetUserNameAsync(string userId)
         {
-            var user = await GetUserAndCheckIfNull(userId);
+            var user = await GetUserByIdAndCheckIfNull(userId);
             return await _userManager.GetUserNameAsync(user);
         }
 
         public async Task<bool> IsInRoleAsync(string userId, string role)
         {
-            var user = await GetUserAndCheckIfNull(userId);
+            var user = await GetUserByIdAndCheckIfNull(userId);
             return await _userManager.IsInRoleAsync(user, role);
         }
 
@@ -75,31 +66,36 @@ namespace Infrastructure.Identity
 
 
 
-        public async Task<AuthenticationResponse> Register(RegisterUserDto user)
+        public async Task<AuthenticationResponse> RegisterAsync(RegisterUserDto user)
         {
             if (await CheckIfEmailInUse(user.Email))
                 return new AuthenticationResponse() { Message = "Email is Already in use" };
 
             var userEntity = RegisterDtoToApplicationUser(user);
             var result = await _userManager.CreateAsync(userEntity, user.Password);
-            var response = new AuthenticationResponse();
-            if (!result.Succeeded)
-            {
-                response.Message = HandleErrors(result);
-                return response;
-            }
-            var token = await CreateToken(userEntity);
-            PrepareResponseForSuccess(userEntity, response, token);
-            return response ;
+           
+
+
+            if (!result.Succeeded)  throw new BadRequestException(HandleErrors(result));
+            
+
+            
+           var signInResult= await _signInManager.PasswordSignInAsync(userEntity,user.Password, true,false);
+           
+            
+            return PrepareResponseForSuccess(userEntity, signInResult.Succeeded);
 
         }
 
-                private static void PrepareResponseForSuccess(ApplicationUser userEntity, AuthenticationResponse response, JwtSecurityToken token)
-                {
-                    response.Message = "Registeration Succeeded";
-                    response.Email = userEntity.Email;
-                    response.IsAuthenticated = true;
-                    response.Token = new JwtSecurityTokenHandler().WriteToken(token);
+        private AuthenticationResponse PrepareResponseForSuccess(ApplicationUser userEntity, bool isAuthenticated)
+        {
+            return new AuthenticationResponse
+            {
+                Message = "Registeration Succeeded",
+                Email = userEntity.Email,
+                UserName = userEntity.UserName,
+                IsAuthenticated = isAuthenticated
+            };
                 }
 
                 private  async Task<bool> CheckIfEmailInUse(string email) 
@@ -128,53 +124,31 @@ namespace Infrastructure.Identity
                        FirstName = user.FirstName,
                        LastName = user.LastName,
                        PhoneNumber = user.PhoneNumber,
-                       UserName=user.Email
+                       UserName=user.UserName
                     };
                 }
 
-        private async Task<JwtSecurityToken> CreateToken(ApplicationUser user)
+        public async Task<LoginResponse> LoginAsync(LoginDto login)
         {
-            IEnumerable<Claim> claims = await GetClaims(user);
+            var user = await _userManager.FindByNameAsync(login.UserName);
 
-            var symetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
-            var signingCredentials = new SigningCredentials(symetricSecurityKey, SecurityAlgorithms.HmacSha256);
+            if (user is null) throw new NotFoundException(nameof(user), login.UserName);
 
-            JwtSecurityToken jwtSecurityToket = GetSecurityToken(claims, signingCredentials);
+            var result = await _signInManager.PasswordSignInAsync(user, login.Password, true, false);
 
-            return jwtSecurityToket;
+            if (!result.Succeeded) throw new BadRequestException("User name or password might be wrong");
 
-
-
+            return GetLoginResponse(login, result);
         }
 
-                private JwtSecurityToken GetSecurityToken(IEnumerable<Claim> claims, SigningCredentials signingCredentials)
+                private static LoginResponse GetLoginResponse(LoginDto login, SignInResult result)
                 {
-                    return new JwtSecurityToken(
-                        issuer: _jwt.Issuer,
-                        audience: _jwt.Audience,
-                        claims: claims,
-                        expires: DateTime.Now.AddDays(_jwt.DurationInDays),
-                        signingCredentials: signingCredentials);
-                }
-
-                private async Task<IEnumerable<Claim>> GetClaims(ApplicationUser user)
-                {
-                    var userClaims = await _userManager.GetClaimsAsync(user);
-                    var roles = await _userManager.GetRolesAsync(user);
-                    var roleClaims = new List<Claim>();
-
-                    foreach (var role in roles)
-                        roleClaims.Add(new Claim("roles", role));
-
-                    var claims = new[] {
-                       new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
-
-                       new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                       new Claim("uid", user.Email),
-                    }
-                    .Union(userClaims)
-                    .Union(roleClaims);
-                    return claims;
+                    return new LoginResponse()
+                    {
+                        IsAuthenticated = result.Succeeded,
+                        UserName = login.UserName,
+                        Message = "Logged in successfully" 
+                    };
                 }
     }
 }

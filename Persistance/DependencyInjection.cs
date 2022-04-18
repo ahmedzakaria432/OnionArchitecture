@@ -21,6 +21,8 @@ using Core.Shared;
 using Infrastructure.Peresistence.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Application.Identity;
+using Infrastructure.Infrastructure.Helpers.Middlewares;
 
 namespace Infrastructure
 {
@@ -34,32 +36,11 @@ namespace Infrastructure
             services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
             );
-
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-                .AddJwtBearer(o =>
-                {
-
-                    o.RequireHttpsMetadata = false;
-                    o.SaveToken = false;
-                    o.TokenValidationParameters = new TokenValidationParameters()
-                    {
-                        ValidateIssuerSigningKey = true,
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidIssuer = configuration["JWT:Issuer"],
-                        ValidAudience = configuration["JWT:Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["JWT:Key"]))
-                    };
-                });
-
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddTransient<ExceptionHandlingMiddleware>();
+            services.AddScoped<IIdentityService,IdentityService>();
             services.AddScoped<ISampleRepository, SampleRepository>();
             services.AddScoped<ISampleService, SampleService>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 
 

@@ -1,0 +1,50 @@
+﻿using Core.Shared.Exceptions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+
+namespace Infrastructure.Infrastructure.Helpers.Middlewares
+{
+    public class ExceptionHandlingMiddleware : IMiddleware
+    {
+        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+
+        public ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware> logger) => this._logger = logger;
+        
+        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+        {
+            try
+            {
+                await next(context);
+            }
+            catch (Exception ex) 
+            {
+                _logger.LogError(ex,ex.Message);
+
+               await HandleExceptionAsync(context, ex);
+            }
+        }
+
+        private static async Task HandleExceptionAsync(HttpContext httpContext, Exception exception)
+        {
+            httpContext.Response.ContentType = "application/json";
+
+            httpContext.Response.StatusCode = exception switch
+            {
+                NotFoundException => StatusCodes.Status404NotFound,
+                BadRequestException => StatusCodes.Status400BadRequest,
+
+                _ => StatusCodes.Status500InternalServerError
+
+            };
+
+            var response = new
+            {
+                error = exception.Message
+            };
+
+            await httpContext.Response.WriteAsync(JsonSerializer.Serialize(response));
+
+        }
+    }
+}

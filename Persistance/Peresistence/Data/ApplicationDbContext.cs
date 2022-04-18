@@ -1,16 +1,9 @@
-﻿using Application.Shared.Interfaces;
-using Core.Samples;
+﻿using Core.Samples;
 using Core.Shared;
 using Infrastructure.Identity;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Peresistence.Data
 {
@@ -25,23 +18,18 @@ namespace Infrastructure.Peresistence.Data
 
         public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
-            foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>())
             {
                 switch (entry.State)
                 {
-                  
                     case EntityState.Deleted:
                         entry.State = EntityState.Modified;
                         entry.Entity.IsDeleted = true;
                         break;
-                    case EntityState.Modified:
-                        entry.Entity.LastModified = DateTime.Now;
-                        break;
-                    case EntityState.Added:
-                        entry.Entity.Created = DateTime.Now;
-                        break;
+                  
                     default:
                         break;
+             
                 }
 
             }

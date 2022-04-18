@@ -10,7 +10,8 @@ namespace Application.Identity.Dtos
     {
         public string Message { get; set; }        
         public string Email { get; set; }
+        public string UserName { get; set; }
         public bool IsAuthenticated { get; set; }
-        public string Token { get; set; }
+        public object AdditionalInfo { get; set; }
     }
 }

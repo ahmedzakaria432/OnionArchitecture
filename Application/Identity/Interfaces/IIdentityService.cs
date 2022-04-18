@@ -9,10 +9,11 @@ namespace Application.Identity
 {
     public interface IIdentityService
     {
-        Task<AuthenticationResponse> Register(RegisterUserDto user);
+        Task<AuthenticationResponse> RegisterAsync(RegisterUserDto user);
         Task<string> GetUserNameAsync(string userId);
         Task<bool> IsInRoleAsync(string userId, string role);
-        Task<UserDto> GetUser(string userId);
+        Task<UserDto> GetUserAsync(string userId);
+        Task<LoginResponse> LoginAsync(LoginDto login);
             
     }
 }
